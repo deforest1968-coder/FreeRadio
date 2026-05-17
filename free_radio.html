@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FREE.RADIO — Internet Radio</title>
+<style>
+:root {
+  --bg: #06060f;
+  --panel: #0c0c1e;
+  --card: #13132a;
+  --border: #1e1e3a;
+  --accent: #00e5ff;
+  --accent2: #a855f7;
+  --accent3: #ff6b35;
+  --text: #e0e4ff;
+  --muted: #4a4a80;
+  --green: #00ff88;
+  --red: #ff4466;
+  --yellow: #ffd700;
+  --pink: #ff69b4;
+  --active-bg: rgba(0,229,255,0.07);
+  --sidebar-w: 360px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text);
+  font-family: 'Courier New', 'Lucida Console', monospace; overflow: hidden; }
+
+#app { display: grid; grid-template-rows: 68px 1fr; grid-template-columns: var(--sidebar-w) 1fr; height: 100vh; }
+
+/* ══ TOPBAR ══ */
+#topbar { grid-column: 1/-1;
+  background: linear-gradient(105deg, #0d0030 0%, #1a0060 15%, #0a1580 35%, #001a6e 55%, #0d0050 75%, #0a0030 100%);
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, #ff6b35, #a855f7, #00e5ff, #a855f7, #ff6b35) 1;
+  box-shadow: 0 3px 40px rgba(168,85,247,0.2), inset 0 -1px 0 rgba(0,229,255,0.2);
+  display: flex; align-items: center; gap: 16px; padding: 0 22px; }
+.logo { font-size: 27px; font-weight: bold; letter-spacing: 7px; white-space: nowrap;
+  background: linear-gradient(90deg, #ff6b35, #ff69b4, #a855f7, #00e5ff, #a855f7, #ff6b35);
+  background-size: 300% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: shimmer 5s linear infinite;
+  filter: drop-shadow(0 0 14px rgba(168,85,247,0.7)); }
+@keyframes shimmer { 0%{background-position:0%} 100%{background-position:300%} }
+.logo em { font-style: normal; }
+.pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 14px var(--green); animation: blink 2s infinite; flex-shrink: 0; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
+.top-meta { font-size: 10px; color: #7070b0; flex: 1; }
+#sig-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background .3s; }
+#sig-dot.live  { background: var(--green); box-shadow: 0 0 12px var(--green); animation: blink 1.4s infinite; }
+#sig-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+#sig-dot.load  { background: var(--accent); animation: blink .5s infinite; }
+#sig-label { font-size: 10px; color: var(--muted); width: 90px; }
+
+/* ══ SIDEBAR ══ */
+#sidebar {
+  background: linear-gradient(180deg, #0e0e28 0%, #0a0a1e 100%);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 2px 0 20px rgba(0,0,0,0.4); }
+
+/* sidebar header strip */
+#sidebar-header {
+  background: linear-gradient(135deg, #12003a 0%, #001240 50%, #0a002a 100%);
+  border-bottom: 1px solid rgba(168,85,247,0.3);
+  padding: 10px 12px 8px;
+  flex-shrink: 0; }
+#sidebar-title { font-size: 9px; letter-spacing: 3px; color: #6060a0;
+  text-transform: uppercase; margin-bottom: 6px; }
+
+/* genre LOAD buttons — grid layout */
+#genre-source-bar {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.gsrc { background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  color: #5a5a90; padding: 4px 4px; border-radius: 4px; cursor: pointer; font-size: 10px;
+  font-family: inherit; transition: all .15s; text-align: center; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.gsrc:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(168,85,247,0.08); }
+.gsrc.loaded { border-color: rgba(0,229,255,0.4); color: var(--accent); background: rgba(0,229,255,0.06); }
+.gsrc.loading { border-color: var(--accent); color: var(--accent); animation: blink .5s infinite; }
+.gsrc.failed { border-color: var(--red); color: var(--red); }
+
+/* search box */
+#ch-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; position: relative;
+  background: linear-gradient(90deg, rgba(0,229,255,0.03), transparent); }
+#ch-search-wrap::before { content: '⌕'; position: absolute; left: 19px; top: 50%;
+  transform: translateY(-50%); color: var(--muted); font-size: 15px; pointer-events: none; }
+#ch-search { width: 100%;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  color: var(--text); padding: 7px 10px 7px 30px; border-radius: 4px;
+  font-family: inherit; font-size: 12px; outline: none; transition: all .2s; }
+#ch-search:focus { border-color: var(--accent); background: rgba(0,229,255,0.04);
+  box-shadow: 0 0 12px rgba(0,229,255,0.1); }
+#ch-search::placeholder { color: var(--muted); }
+
+/* GENRE FILTER TABS — multi-select pill grid */
+#genre-filter-label { padding: 7px 12px 4px; font-size: 9px; color: #4a4a70;
+  letter-spacing: 2px; text-transform: uppercase; flex-shrink: 0;
+  display: flex; justify-content: space-between; align-items: center; }
+#clear-genres { font-size: 9px; color: #4a4a70; cursor: pointer; padding: 2px 6px;
+  border: 1px solid var(--border); border-radius: 3px; transition: all .15s; }
+#clear-genres:hover { color: var(--accent); border-color: var(--accent); }
+#genre-bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 10px 8px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.grp { background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #5a5a90;
+  padding: 3px 9px; border-radius: 20px; cursor: pointer; font-size: 10px;
+  font-family: inherit; white-space: nowrap; transition: all .15s; }
+.grp:hover { border-color: var(--accent2); color: var(--accent2); }
+.grp.on { color: #000; font-weight: bold; }
+/* each genre gets a distinct color when active */
+.grp[data-g="pop"].on    { background: #ff69b4; border-color: #ff69b4; }
+.grp[data-g="rock"].on   { background: #ff4466; border-color: #ff4466; }
+.grp[data-g="jazz"].on   { background: #ffd700; border-color: #ffd700; }
+.grp[data-g="classical"].on { background: #a78bfa; border-color: #a78bfa; }
+.grp[data-g="blues"].on  { background: #60a5fa; border-color: #60a5fa; }
+.grp[data-g="country"].on{ background: #fb923c; border-color: #fb923c; }
+.grp[data-g="electronic"].on { background: #00e5ff; border-color: #00e5ff; }
+.grp[data-g="hiphop"].on { background: #34d399; border-color: #34d399; }
+.grp[data-g="ambient"].on{ background: #818cf8; border-color: #818cf8; }
+.grp[data-g="metal"].on  { background: #94a3b8; border-color: #94a3b8; }
+.grp[data-g="folk"].on   { background: #a3e635; border-color: #a3e635; }
+.grp[data-g="reggae"].on { background: #4ade80; border-color: #4ade80; }
+.grp[data-g="latin"].on  { background: #f472b6; border-color: #f472b6; }
+.grp[data-g="soul"].on   { background: #c084fc; border-color: #c084fc; }
+.grp[data-g="indie"].on  { background: #f9a8d4; border-color: #f9a8d4; }
+.grp[data-g="news"].on   { background: #38bdf8; border-color: #38bdf8; }
+.grp[data-g="talk"].on   { background: #e2e8f0; border-color: #e2e8f0; }
+.grp[data-g="sports"].on { background: #fbbf24; border-color: #fbbf24; }
+
+/* station list */
+#st-count { padding: 5px 12px; font-size: 10px; color: var(--muted);
+  border-bottom: 1px solid var(--border); flex-shrink: 0; letter-spacing: .5px;
+  background: rgba(0,0,0,0.2); }
+#st-list { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #252550 transparent; }
+#st-list::-webkit-scrollbar { width: 4px; }
+#st-list::-webkit-scrollbar-thumb { background: #252550; border-radius: 2px; }
+
+.st { display: flex; align-items: center; gap: 11px; padding: 11px 12px 11px 0;
+  cursor: pointer; border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  transition: background .12s, border-left-color .12s;
+  position: relative; }
+.st:hover { background: rgba(255,255,255,0.03); }
+.st.on { background: var(--active-bg); }
+
+/* colored left border per genre */
+.st[data-genre="pop"]      { --gcol: #ff69b4; }
+.st[data-genre="rock"]     { --gcol: #ff4466; }
+.st[data-genre="jazz"]     { --gcol: #ffd700; }
+.st[data-genre="classical"]{ --gcol: #a78bfa; }
+.st[data-genre="blues"]    { --gcol: #60a5fa; }
+.st[data-genre="country"]  { --gcol: #fb923c; }
+.st[data-genre="electronic"]{ --gcol: #00e5ff; }
+.st[data-genre="hiphop"]   { --gcol: #34d399; }
+.st[data-genre="ambient"]  { --gcol: #818cf8; }
+.st[data-genre="metal"]    { --gcol: #94a3b8; }
+.st[data-genre="folk"]     { --gcol: #a3e635; }
+.st[data-genre="reggae"]   { --gcol: #4ade80; }
+.st[data-genre="latin"]    { --gcol: #f472b6; }
+.st[data-genre="soul"]     { --gcol: #c084fc; }
+.st[data-genre="indie"]    { --gcol: #f9a8d4; }
+.st[data-genre="news"]     { --gcol: #38bdf8; }
+.st[data-genre="talk"]     { --gcol: #e2e8f0; }
+.st[data-genre="sports"]   { --gcol: #fbbf24; }
+.st.on { border-left-color: var(--gcol, var(--accent)); }
+.st:hover { border-left-color: rgba(255,255,255,0.1); }
+.st.on:hover { border-left-color: var(--gcol, var(--accent)); }
+
+.st-num { font-size: 9px; color: #333355; width: 28px; text-align: right;
+  flex-shrink: 0; padding-left: 4px; }
+.st-logo { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0;
+  background: rgba(255,255,255,0.03); border-radius: 5px; padding: 3px;
+  border: 1px solid rgba(255,255,255,0.05); }
+.st-ph { width: 42px; height: 42px; background: rgba(255,255,255,0.03); border-radius: 5px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  flex-shrink: 0; border: 1px solid rgba(255,255,255,0.05); }
+.st-info { flex: 1; min-width: 0; }
+.st-name { font-size: 13px; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; color: #c8ccf0; line-height: 1.3; }
+.st.on .st-name { color: var(--gcol, var(--accent)); text-shadow: 0 0 10px rgba(0,229,255,0.2); }
+.st-sub { font-size: 10px; color: #42426a; margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-right { display: flex; flex-direction: column; align-items: flex-end;
+  gap: 4px; flex-shrink: 0; padding-right: 10px; }
+.st-badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; white-space: nowrap;
+  background: rgba(168,85,247,0.12); color: #9060e0;
+  border: 1px solid rgba(168,85,247,0.2); }
+.st-kbps { font-size: 9px; color: #333355; }
+.st-empty { padding: 40px 20px; text-align: center; color: var(--muted);
+  font-size: 12px; line-height: 2; }
+
+/* ══ PLAYER ══ */
+#main { display: flex; flex-direction: column; overflow: hidden; }
+#player-area { flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+  background:
+    radial-gradient(ellipse 60% 60% at 20% 80%, rgba(168,85,247,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 80% 20%, rgba(0,229,255,0.1) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255,107,53,0.04) 0%, transparent 70%),
+    #060610;
+  position: relative; overflow: hidden; }
+
+/* animated rings */
+#player-area::before {
+  content: ''; position: absolute;
+  width: 520px; height: 520px; border-radius: 50%;
+  border: 1px solid rgba(0,229,255,0.05);
+  animation: rpulse 5s ease-in-out infinite; }
+#player-area::after {
+  content: ''; position: absolute;
+  width: 360px; height: 360px; border-radius: 50%;
+  border: 1px solid rgba(168,85,247,0.08);
+  animation: rpulse 5s ease-in-out infinite 1s; }
+@keyframes rpulse { 0%,100%{transform:scale(1);opacity:.3} 50%{transform:scale(1.1);opacity:1} }
+
+/* disc */
+#disc { width: 140px; height: 140px; border-radius: 50%;
+  background: conic-gradient(from 0deg, #1a0050, #003070, #0d1a70, #200060, #1a0050);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 1;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  transition: box-shadow .5s; }
+#disc.spinning { animation: spin 7s linear infinite;
+  box-shadow: 0 0 60px rgba(168,85,247,0.35), 0 0 0 1px rgba(168,85,247,0.3); }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+#disc-logo { width: 86px; height: 86px; border-radius: 50%; object-fit: contain;
+  background: #0a0a20; padding: 6px; }
+#disc-ph { font-size: 40px; }
+#disc-dot { position: absolute; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--bg); border: 2px solid rgba(255,255,255,0.08); }
+
+#station-name { font-size: 19px; font-weight: bold; letter-spacing: 2px;
+  text-align: center; max-width: 440px; line-height: 1.3;
+  position: relative; z-index: 1; display: none; padding: 0 20px; }
+#station-meta { font-size: 11px; color: #5a5a90; text-align: center;
+  position: relative; z-index: 1; display: none; letter-spacing: .5px; }
+
+/* visualizer */
+#viz { display: flex; gap: 3px; align-items: flex-end; height: 36px;
+  position: relative; z-index: 1; }
+.vbar { width: 5px; border-radius: 3px; height: 3px; opacity: 0; transition: opacity .4s; }
+.vbar.active { animation: vbounce var(--d,.6s) ease-in-out infinite alternate; opacity: 1; }
+@keyframes vbounce { from{height:3px} to{height:var(--h,18px)} }
+/* rainbow bars */
+.vbar:nth-child(1)  { background: linear-gradient(to top,#ff4466,#ff6b8a); }
+.vbar:nth-child(2)  { background: linear-gradient(to top,#ff6b35,#ffa060); }
+.vbar:nth-child(3)  { background: linear-gradient(to top,#ffd700,#ffe860); }
+.vbar:nth-child(4)  { background: linear-gradient(to top,#a3e635,#c4f060); }
+.vbar:nth-child(5)  { background: linear-gradient(to top,#00ff88,#60ffa8); }
+.vbar:nth-child(6)  { background: linear-gradient(to top,#00e5ff,#60f0ff); }
+.vbar:nth-child(7)  { background: linear-gradient(to top,#60a5fa,#90c0ff); }
+.vbar:nth-child(8)  { background: linear-gradient(to top,#a855f7,#c080ff); }
+.vbar:nth-child(9)  { background: linear-gradient(to top,#ff69b4,#ff90c8); }
+.vbar:nth-child(10) { background: linear-gradient(to top,#ff4466,#ff6b8a); }
+.vbar:nth-child(11) { background: linear-gradient(to top,#ff6b35,#ffa060); }
+.vbar:nth-child(12) { background: linear-gradient(to top,#ffd700,#ffe860); }
+.vbar:nth-child(13) { background: linear-gradient(to top,#a3e635,#c4f060); }
+.vbar:nth-child(14) { background: linear-gradient(to top,#00ff88,#60ffa8); }
+.vbar:nth-child(15) { background: linear-gradient(to top,#00e5ff,#60f0ff); }
+.vbar:nth-child(16) { background: linear-gradient(to top,#60a5fa,#90c0ff); }
+.vbar:nth-child(17) { background: linear-gradient(to top,#a855f7,#c080ff); }
+.vbar:nth-child(18) { background: linear-gradient(to top,#ff69b4,#ff90c8); }
+
+audio { display: none; }
+#idle-msg { font-size: 13px; color: #4a4a70; text-align: center;
+  line-height: 1.9; position: relative; z-index: 1; }
+#idle-hint { font-size: 10px; color: #2a2a50; position: relative; z-index: 1; }
+#prog { position: absolute; bottom: 0; left: 0; height: 2px;
+  background: linear-gradient(90deg,#ff6b35,#a855f7,#00e5ff);
+  width: 0; transition: width .4s; }
+
+/* controls */
+#controls { display: none; gap: 14px; align-items: center; position: relative; z-index: 1; }
+.ctrl { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: #6060a0;
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 14px;
+  font-family: inherit; transition: all .15s; display: flex; align-items: center; justify-content: center; }
+.ctrl:hover { border-color: var(--accent); color: var(--accent);
+  background: rgba(0,229,255,0.08); box-shadow: 0 0 16px rgba(0,229,255,0.15); }
+.ctrl#btn-stop:hover { border-color: var(--red); color: var(--red);
+  background: rgba(255,68,102,0.08); box-shadow: 0 0 16px rgba(255,68,102,0.15); }
+#vol-wrap { display: flex; align-items: center; gap: 8px; }
+#vol-icon { font-size: 13px; color: #5050a0; }
+#vol { -webkit-appearance: none; width: 100px; height: 3px;
+  background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
+#vol::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px;
+  border-radius: 50%; background: linear-gradient(135deg,var(--accent2),var(--accent)); cursor: pointer; }
+
+/* now bar */
+#now-bar {
+  background: linear-gradient(90deg, #0a0a20, #0c0c22, #0a0a20);
+  border-top: 1px solid var(--border);
+  padding: 6px 18px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+#np-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+#np-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1.4s infinite; }
+#np-name  { font-size: 12px; color: var(--accent); flex: 2; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+#np-genre { font-size: 10px; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
+  background: rgba(168,85,247,0.15); color: var(--accent2); border: 1px solid rgba(168,85,247,0.2); }
+#np-meta  { font-size: 9px; color: #2a2a50; flex: 3; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+
+/* toast */
+#toast { position: fixed; bottom: 50px; right: 18px; background: #120010;
+  border: 1px solid rgba(255,68,102,0.5); color: var(--red); padding: 8px 16px; border-radius: 4px;
+  font-size: 11px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999;
+  max-width: 300px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+#toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <div class="logo">FREE<em>.</em>RADIO</div>
+    <div class="pulse"></div>
+    <div class="top-meta" id="top-meta">Select genres to load stations</div>
+    <div id="sig-dot"></div>
+    <div id="sig-label">idle</div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+
+    <div id="sidebar-header">
+      <div id="sidebar-title">Load Genres</div>
+      <div id="genre-source-bar"></div>
+    </div>
+
+    <div id="ch-search-wrap">
+      <input id="ch-search" type="search" placeholder="Search stations, country, tags…" autocomplete="off">
+    </div>
+
+    <div id="genre-filter-label">
+      <span>Filter by genre</span>
+      <span id="clear-genres">clear all</span>
+    </div>
+    <div id="genre-bar"></div>
+
+    <div id="st-count"></div>
+    <div id="st-list"><div class="st-empty">📻 Click genre buttons above<br>to load live stations.</div></div>
+  </div>
+
+  <!-- Main player -->
+  <div id="main">
+    <div id="player-area">
+      <div id="disc">
+        <img id="disc-logo" style="display:none" alt="">
+        <div id="disc-ph">📻</div>
+        <div id="disc-dot"></div>
+      </div>
+      <div id="station-name"></div>
+      <div id="station-meta"></div>
+      <div id="viz"></div>
+      <div id="controls">
+        <button class="ctrl" id="btn-prev" title="Previous">◀</button>
+        <button class="ctrl" id="btn-stop" title="Stop">■</button>
+        <button class="ctrl" id="btn-next" title="Next">▶</button>
+        <div id="vol-wrap">
+          <span id="vol-icon">🔊</span>
+          <input id="vol" type="range" min="0" max="1" step="0.02" value="0.8">
+        </div>
+      </div>
+      <div id="idle-msg">
+        Free internet radio · radio-browser.info<br>
+        100,000+ stations · no signup · no ads
+      </div>
+      <div id="idle-hint">↑↓ navigate · / search · click to tune</div>
+      <audio id="aud" preload="none"></audio>
+      <div id="prog"></div>
+    </div>
+    <div id="now-bar">
+      <div id="np-dot"></div>
+      <div id="np-name">No station selected</div>
+      <div id="np-genre"></div>
+      <div id="np-meta"></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const GENRES = [
+  { id:"pop",        label:"🎵 Pop",        tag:"pop",        color:"#ff69b4" },
+  { id:"rock",       label:"🎸 Rock",       tag:"rock",       color:"#ff4466" },
+  { id:"jazz",       label:"🎷 Jazz",       tag:"jazz",       color:"#ffd700" },
+  { id:"classical",  label:"🎻 Classical",  tag:"classical",  color:"#a78bfa" },
+  { id:"blues",      label:"🎹 Blues",      tag:"blues",      color:"#60a5fa" },
+  { id:"country",    label:"🤠 Country",    tag:"country",    color:"#fb923c" },
+  { id:"electronic", label:"🎛 Electronic", tag:"electronic", color:"#00e5ff" },
+  { id:"hiphop",     label:"🎤 Hip-Hop",    tag:"hip-hop",    color:"#34d399" },
+  { id:"ambient",    label:"🌊 Ambient",    tag:"ambient",    color:"#818cf8" },
+  { id:"metal",      label:"🤘 Metal",      tag:"metal",      color:"#94a3b8" },
+  { id:"folk",       label:"🪕 Folk",       tag:"folk",       color:"#a3e635" },
+  { id:"reggae",     label:"🌴 Reggae",     tag:"reggae",     color:"#4ade80" },
+  { id:"latin",      label:"💃 Latin",      tag:"latin",      color:"#f472b6" },
+  { id:"soul",       label:"✨ Soul",       tag:"soul",       color:"#c084fc" },
+  { id:"indie",      label:"🌀 Indie",      tag:"indie",      color:"#f9a8d4" },
+  { id:"news",       label:"📰 News",       tag:"news",       color:"#38bdf8" },
+  { id:"talk",       label:"🗣 Talk",       tag:"talk",       color:"#e2e8f0" },
+  { id:"sports",     label:"⚽ Sports",     tag:"sports",     color:"#fbbf24" },
+];
+
+const API_BASE = "https://de1.api.radio-browser.info";
+const LIMIT = 120;
+
+let stations = [], filtered = [], currentSt = null;
+let selectedGenres = new Set(); // multi-select: empty = ALL
+const loaded = new Set();
+
+// Build visualizer bars
+const viz = document.getElementById("viz");
+for (let i = 0; i < 18; i++) {
+  const b = document.createElement("div");
+  b.className = "vbar";
+  b.style.setProperty("--d", (0.32 + i * 0.055).toFixed(2) + "s");
+  b.style.setProperty("--h", (6 + ((i * 11) % 26)) + "px");
+  viz.appendChild(b);
+}
+const vbars = [...viz.querySelectorAll(".vbar")];
+
+// DOM refs
+const aud      = document.getElementById("aud");
+const stList   = document.getElementById("st-list");
+const stCount  = document.getElementById("st-count");
+const chSearch = document.getElementById("ch-search");
+const genreBar = document.getElementById("genre-bar");
+const srcBar   = document.getElementById("genre-source-bar");
+const sigDot   = document.getElementById("sig-dot");
+const sigLabel = document.getElementById("sig-label");
+const topMeta  = document.getElementById("top-meta");
+const npName   = document.getElementById("np-name");
+const npGenre  = document.getElementById("np-genre");
+const npMeta   = document.getElementById("np-meta");
+const npDot    = document.getElementById("np-dot");
+const prog     = document.getElementById("prog");
+const toast    = document.getElementById("toast");
+const disc     = document.getElementById("disc");
+const discLogo = document.getElementById("disc-logo");
+const discPh   = document.getElementById("disc-ph");
+const stName   = document.getElementById("station-name");
+const stMeta   = document.getElementById("station-meta");
+const controls = document.getElementById("controls");
+const idleMsg  = document.getElementById("idle-msg");
+const idleHint = document.getElementById("idle-hint");
+const vol      = document.getElementById("vol");
+
+// Build LOAD buttons
+GENRES.forEach(g => {
+  const btn = document.createElement("button");
+  btn.className = "gsrc";
+  btn.textContent = g.label;
+  btn.title = "Load " + g.label + " stations";
+  btn.addEventListener("click", () => loadGenre(g, btn));
+  srcBar.appendChild(btn);
+});
+
+// Build genre FILTER pills (shown after loading)
+function rebuildGenreTabs() {
+  genreBar.innerHTML = "";
+  [...loaded].forEach(gid => {
+    const gdef = GENRES.find(g => g.id === gid);
+    if (!gdef) return;
+    const b = document.createElement("button");
+    b.className = "grp" + (selectedGenres.has(gid) ? " on" : "");
+    b.dataset.g = gid;
+    b.textContent = gdef.label;
+    if (selectedGenres.has(gid)) b.style.background = gdef.color;
+    genreBar.appendChild(b);
+  });
+}
+
+// Multi-select genre toggle
+genreBar.addEventListener("click", e => {
+  const b = e.target.closest(".grp");
+  if (!b) return;
+  const gid = b.dataset.g;
+  const gdef = GENRES.find(g => g.id === gid);
+  if (selectedGenres.has(gid)) {
+    selectedGenres.delete(gid);
+    b.classList.remove("on");
+    b.style.background = "";
+  } else {
+    selectedGenres.add(gid);
+    b.classList.add("on");
+    if (gdef) b.style.background = gdef.color;
+  }
+  applyFilters();
+});
+
+document.getElementById("clear-genres").addEventListener("click", () => {
+  selectedGenres.clear();
+  document.querySelectorAll(".grp").forEach(b => {
+    b.classList.remove("on"); b.style.background = "";
+  });
+  applyFilters();
+});
+
+chSearch.addEventListener("input", applyFilters);
+
+async function loadGenre(g, btn) {
+  if (btn.classList.contains("loading")) return;
+  btn.className = "gsrc loading";
+  btn.textContent = "⟳ " + g.label;
+  try {
+    const url = `${API_BASE}/json/stations/search?tag=${encodeURIComponent(g.tag)}&limit=${LIMIT}&order=clickcount&reverse=true&hidebroken=true`;
+    const res = await fetch(url, { headers: { "User-Agent": "FreeRadio/1.0" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const clean = data
+      .filter(s => {
+        const u = (s.url_resolved || s.url || "").toLowerCase();
+        return u.startsWith("http") && !u.endsWith(".pls") && !u.endsWith(".xspf");
+      })
+      .map(s => ({
+        name:    (s.name || "").trim() || "Unknown",
+        url:     s.url_resolved || s.url || "",
+        favicon: s.favicon || "",
+        genre:   g.id,
+        color:   g.color,
+        tags:    s.tags || "",
+        country: s.country || "",
+        language:s.language || "",
+        bitrate: parseInt(s.bitrate) || 0,
+        codec:   (s.codec || "").toUpperCase(),
+        votes:   parseInt(s.votes) || 0,
+        uuid:    s.stationuuid || "",
+      }));
+    const existUrls = new Set(stations.map(s => s.url));
+    stations = stations.concat(clean.filter(s => !existUrls.has(s.url)));
+    loaded.add(g.id);
+    btn.className = "gsrc loaded";
+    btn.textContent = "✓ " + g.label;
+    topMeta.textContent = stations.length + " stations · " + loaded.size + " genre" + (loaded.size > 1 ? "s" : "");
+    rebuildGenreTabs();
+    applyFilters();
+  } catch (err) {
+    btn.className = "gsrc failed";
+    btn.textContent = "✗ " + g.label;
+    showToast(g.label + ": " + err.message);
+    setTimeout(() => { btn.className = "gsrc"; btn.textContent = g.label; }, 4000);
+  }
+}
+
+function applyFilters() {
+  const q = chSearch.value.toLowerCase().trim();
+  filtered = stations.filter(s => {
+    const genreOk = selectedGenres.size === 0 || selectedGenres.has(s.genre);
+    const searchOk = !q || s.name.toLowerCase().includes(q) ||
+      s.tags.toLowerCase().includes(q) || s.country.toLowerCase().includes(q);
+    return genreOk && searchOk;
+  });
+  renderList();
+}
+
+function renderList() {
+  stCount.textContent = filtered.length + " station" + (filtered.length !== 1 ? "s" : "")
+    + (selectedGenres.size ? " · " + [...selectedGenres].join(", ") : "");
+  if (!filtered.length) {
+    stList.innerHTML = stations.length === 0
+      ? `<div class="st-empty">📻 Click genre buttons above<br>to load live stations.</div>`
+      : `<div class="st-empty">No stations match.</div>`;
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  filtered.forEach((st, i) => {
+    const d = document.createElement("div");
+    d.className = "st" + (st === currentSt ? " on" : "");
+    d.dataset.genre = st.genre;
+    const sub = [st.country, st.language].filter(Boolean).join(" · ");
+    const codec = st.codec ? `<div class="st-badge">${esc(st.codec)}</div>` : "";
+    const kbps  = st.bitrate ? `<div class="st-kbps">${st.bitrate}k</div>` : "";
+    d.innerHTML =
+      `<div class="st-num">${i+1}</div>` +
+      (st.favicon
+        ? `<img class="st-logo" src="${esc(st.favicon)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=st-ph>📻</div>'">`
+        : `<div class="st-ph">📻</div>`) +
+      `<div class="st-info">
+        <div class="st-name">${esc(st.name)}</div>
+        <div class="st-sub">${esc(sub) || '&nbsp;'}</div>
+      </div>
+      <div class="st-right">${codec}${kbps}</div>`;
+    d.addEventListener("click", () => tune(st, d));
+    frag.appendChild(d);
+  });
+  stList.innerHTML = "";
+  stList.appendChild(frag);
+}
+
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function tune(st, el) {
+  currentSt = st;
+  document.querySelectorAll(".st").forEach(x => x.classList.remove("on"));
+  if (el) el.classList.add("on");
+
+  idleMsg.style.display  = "none";
+  idleHint.style.display = "none";
+  stName.style.display   = "block";
+  stMeta.style.display   = "block";
+  controls.style.display = "flex";
+  stName.textContent = st.name;
+  stName.style.color = st.color || "var(--accent)";
+  stName.style.textShadow = st.color ? `0 0 20px ${st.color}55` : "";
+  stMeta.textContent = [st.genre.toUpperCase(), st.country,
+    st.bitrate ? st.bitrate + " kbps" : "", st.codec].filter(Boolean).join("  ·  ");
+
+  if (st.favicon) {
+    discPh.style.display   = "none";
+    discLogo.style.display = "block";
+    discLogo.src = st.favicon;
+    discLogo.onerror = () => { discLogo.style.display="none"; discPh.style.display="block"; };
+  } else {
+    discLogo.style.display = "none";
+    discPh.style.display   = "block";
+  }
+
+  npName.textContent  = st.name;
+  npGenre.textContent = st.genre;
+  npGenre.style.background = st.color ? st.color + "22" : "";
+  npGenre.style.color = st.color || "var(--accent2)";
+  npGenre.style.borderColor = st.color ? st.color + "44" : "";
+  npMeta.textContent  = st.url;
+  npDot.className     = "";
+
+  setSig("load", "connecting…");
+  prog.style.width = "20%";
+  stopViz();
+  disc.classList.remove("spinning");
+  disc.style.boxShadow = "";
+
+  aud.pause(); aud.src = st.url; aud.volume = parseFloat(vol.value);
+  aud.load(); aud.play().catch(()=>{});
+}
+
+aud.onplaying = () => {
+  setSig("live", "▶ ON AIR");
+  disc.classList.add("spinning");
+  disc.style.boxShadow = currentSt?.color ? `0 0 60px ${currentSt.color}55` : "";
+  npDot.className = "live";
+  prog.style.width = "100%";
+  setTimeout(() => { prog.style.width = "0"; }, 700);
+  startViz();
+};
+aud.onwaiting = () => { setSig("load","buffering…"); stopViz(); };
+aud.onstalled = () => { setSig("load","stalled…"); };
+aud.onerror   = () => {
+  setSig("error","error"); disc.classList.remove("spinning");
+  disc.style.boxShadow = ""; npDot.className = "";
+  stopViz(); showToast("Stream error — try another station.");
+};
+
+let vizInt;
+function startViz() {
+  stopViz();
+  vbars.forEach(b => b.classList.add("active"));
+  vizInt = setInterval(() => {
+    vbars.forEach(b => b.style.setProperty("--h", (4+Math.random()*28)+"px"));
+  }, 100);
+}
+function stopViz() {
+  clearInterval(vizInt);
+  vbars.forEach(b => b.classList.remove("active"));
+}
+
+vol.addEventListener("input", () => { aud.volume = parseFloat(vol.value); });
+document.getElementById("btn-prev").addEventListener("click", () => navigate(-1));
+document.getElementById("btn-next").addEventListener("click", () => navigate(1));
+document.getElementById("btn-stop").addEventListener("click", () => {
+  aud.pause(); aud.src=""; setSig("","stopped");
+  disc.classList.remove("spinning"); disc.style.boxShadow="";
+  npDot.className=""; stopViz();
+});
+
+function navigate(dir) {
+  if (!filtered.length) return;
+  const idx = filtered.indexOf(currentSt);
+  const ni  = (idx + dir + filtered.length) % filtered.length;
+  const items = [...stList.querySelectorAll(".st")];
+  tune(filtered[ni], items[ni]);
+  if (items[ni]) items[ni].scrollIntoView({block:"nearest"});
+}
+
+function setSig(state, label) {
+  sigDot.className = "";
+  if (state==="live")  sigDot.classList.add("live");
+  if (state==="error") sigDot.classList.add("error");
+  if (state==="load")  sigDot.classList.add("load");
+  sigLabel.textContent = label;
+}
+
+function showToast(msg) {
+  toast.textContent = msg; toast.classList.add("on");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove("on"), 5000);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.target === chSearch) return;
+  if (e.key === "/") { e.preventDefault(); chSearch.focus(); return; }
+  if (e.key==="ArrowUp"||e.key==="ArrowDown") {
+    e.preventDefault(); navigate(e.key==="ArrowDown"?1:-1);
+  }
+});
+
+window.addEventListener("load", () => {
+  const btns = [...srcBar.querySelectorAll(".gsrc")];
+  [0,1].forEach((i,d) => { if (btns[i]) setTimeout(()=>btns[i].click(), d*300); });
+});
+</script>
+</body>
+</html>
